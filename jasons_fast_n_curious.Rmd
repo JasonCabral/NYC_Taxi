@@ -1136,7 +1136,7 @@ clean_weather_hourly <- weather_hourly %>%
   mutate(Events = ifelse(Events == "", "Clear", Events)) %>% 
   mutate(Humidity = as.numeric(gsub("%", "", weather_hourly$Humidity))/100) %>% 
   select(-`Gust Speed`, -`Wind Speed`, -V1, -Time) %>% 
-  mutate(Windchill = round(wc(clean_weather_hourly$Temp, clean_weather_hourly$WindSpeed), 1))
+  mutate(Windchill = round(wc(weather_hourly$Temp, weather_hourly$WindSpeed), 1))
 
 ```
 
@@ -1289,9 +1289,9 @@ Note, that according to [discussion items](https://www.kaggle.com/c/nyc-taxi-tri
 The data comes in three separate files, split into the *train* (2 files) vs *test* trip IDs. Here, we will load and examine the data corresponding to the training observations. Note, that this data set is more than twice as large as our original training data.
 
 ```{r warning=FALSE, message=FALSE, results=FALSE}
-foo <- as.tibble(fread("../input/new-york-city-taxi-with-osrm/fastest_routes_train_part_1.csv"))
-bar <- as.tibble(fread("../input/new-york-city-taxi-with-osrm/fastest_routes_train_part_2.csv"))
-foobar <- as.tibble(fread("../input/new-york-city-taxi-with-osrm/fastest_routes_test.csv"))
+foo <- as.tibble(fread("fastest_routes_train_part_1.csv"))
+bar <- as.tibble(fread("fastest_routes_train_part_2.csv"))
+foobar <- as.tibble(fread("fastest_routes_test.csv"))
 
 fastest_route <- bind_rows(foo, bar, foobar)
 ```
@@ -2080,7 +2080,39 @@ glimpse(combine)
 Looks good. The only non-numerical features are *id*, *pickup\_datetime*, *dropoff\_datetime*, and *date*, which will remove in any case, together with *dset* which we will use now to separate the *train* vs *test* again.
 
 
+# Build a model!!
+
+```{r}
+which( colnames(combine)=="trip_duration" )
+
+# combine_matrix <- sparse.model.matrix(trip_duration ~ ., data = combine)
+```
+
+```{r}
+xg_train <- combine %>% filter(dset == "train") %>% select(-id, -trip_duration, -dset)
+
+xg_test <- combine %>% filter(dset == "test") %>% select(-id, -trip_duration, -dset)
+
+xg_train_target <- combine %>% filter(dset == "train") %>% select(trip_duration)
+
+xg_test_target <- combine %>% filter(dset == "test") %>% select(trip_duration)
 
 
+```
+ 
+```{r}
+combine_xgb <- xgboost(data = data.matrix(xg_train),
+                       label = xg_train_target,
+                       eta = 0.1,
+                       max_depth = 5,
+                       nrounds = 5,
+                       subsample = 0.5,
+                       colsample_bytree = 0.5,
+                       seed = 42,
+                       nthread = 3)
+```
 
+```{r}
+xgb_pred_y <- predict(combine_xgb, )
+```
 
